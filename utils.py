@@ -26,8 +26,8 @@ OOP_EXPLANATION = """
 """
 
 MODEL_INFOS = {
-    "Text Generation (distilgpt2)":
-        "Category: Text → Text. Small, fast GPT-2 variant for short continuations.",
+    "Text-to-Image (SD-Turbo)":
+        "Category: Text → Image. Stable Diffusion Turbo for fast 512×512 image synthesis. Use short prompts; 1–4 steps recommended.",
     "Image Classification (ViT-Base-16)":
         "Category: Image → Label. Vision Transformer model to predict the main object."
 }

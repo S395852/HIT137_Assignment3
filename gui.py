@@ -6,7 +6,7 @@ from model_manager import get_model, LoggingMixin
 from utils import OOP_EXPLANATION, MODEL_INFOS
 
 MODEL_CHOICES = [
-    "Text Generation (distilgpt2)",
+    "Text-to-Image (SD-Turbo)",
     "Image Classification (ViT-Base-16)",
 ]
 
@@ -14,14 +14,16 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
     def __init__(self):
         super().__init__()
         self.title("HIT137 – Hugging Face OOP GUI")
-        self.geometry("980x640")
-        self.minsize(920, 600)
+        self.geometry("980x700")
+        self.minsize(920, 620)
 
         # State
         self.current_model_label: Optional[str] = None
         self.current_model = None
         self.current_image_path: Optional[str] = None
         self.current_image_preview: Optional[ImageTk.PhotoImage] = None
+        self.generated_image_pil: Optional[Image.Image] = None
+        self.generated_image_preview: Optional[ImageTk.PhotoImage] = None
 
         self._build_ui()
 
@@ -48,13 +50,14 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self.text_input = tk.Text(left, height=8)
-        self.text_input.insert("1.0", "Write a short prompt for text generation…")
+        self.text_input.insert("1.0", "Write a short prompt (used for Text-to-Image)…")
         self.text_input.pack(fill=tk.X)
 
         btns = ttk.Frame(left)
         btns.pack(fill=tk.X, pady=6)
         ttk.Button(btns, text="Choose Image…", command=self.on_choose_image).pack(side=tk.LEFT)
         ttk.Button(btns, text="Run", command=self.on_run).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btns, text="Save Image…", command=self.on_save_image).pack(side=tk.LEFT)
 
         self.image_canvas = tk.Label(left, relief=tk.SUNKEN, width=44, height=14)
         self.image_canvas.pack(pady=6)
@@ -102,7 +105,7 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
 
     def on_choose_image(self):
         path = filedialog.askopenfilename(
-            title="Select an image",
+            title="Select an image (for classification)",
             filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.bmp;*.gif"), ("All files", "*.*")]
         )
         if not path:
@@ -112,6 +115,8 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
         img.thumbnail((360, 360))
         self.current_image_preview = ImageTk.PhotoImage(img)
         self.image_canvas.configure(image=self.current_image_preview)
+        self.generated_image_pil = None
+        self.generated_image_preview = None
 
     def on_run(self):
         if not self.current_model:
@@ -122,10 +127,15 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
         self.output_text.delete("1.0", tk.END)
 
         try:
-            if label.startswith("Text Generation"):
-                text = self.text_input.get("1.0", tk.END).strip()
-                out = self.current_model.run(text)
-                self.output_text.insert(tk.END, out)
+            if label.startswith("Text-to-Image"):
+                prompt = self.text_input.get("1.0", tk.END).strip()
+                image = self.current_model.run(prompt)  # PIL.Image
+                self.generated_image_pil = image.copy()
+                preview = image.copy()
+                preview.thumbnail((360, 360))
+                self.generated_image_preview = ImageTk.PhotoImage(preview)
+                self.image_canvas.configure(image=self.generated_image_preview)
+                self.output_text.insert(tk.END, "Image generated successfully. Use 'Save Image…' to export.")
 
             elif label.startswith("Image Classification"):
                 if not self.current_image_path:
@@ -139,3 +149,19 @@ class App(tk.Tk, LoggingMixin):   # multiple inheritance
 
         except Exception as e:
             messagebox.showerror("Run Error", str(e))
+
+    def on_save_image(self):
+        if not self.generated_image_pil:
+            messagebox.showinfo("Save", "No generated image to save.")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG image", "*.png"), ("JPEG image", "*.jpg;*.jpeg")]
+        )
+        if not path:
+            return
+        try:
+            self.generated_image_pil.save(path)
+            messagebox.showinfo("Saved", f"Saved to: {path}")
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
